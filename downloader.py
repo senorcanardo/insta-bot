@@ -21,17 +21,10 @@ def get_yt_dlp_cmd(url: str, output_dir: str) -> list[str]:
         "--no-playlist",
         "-o", f"{output_dir}/%(title)s_%(id)s.%(ext)s",
         "--merge-output-format", "mp4",
-        "--write-info-json",
-        # Tell yt-dlp to also grab images, not just video
-        "--extractor-args", "instagram:include_feed_data=1",
+        "--images",          # include image-only posts
+        "--no-warnings",
         url
     ]
-    if os.path.exists(COOKIES_FILE):
-        cmd.extend(["--cookies", COOKIES_FILE])
-        logger.info("Using cookies file for authentication.")
-    else:
-        logger.warning("No cookies file found. Public content only.")
-    return cmd
 
     if os.path.exists(COOKIES_FILE):
         cmd.extend(["--cookies", COOKIES_FILE])
