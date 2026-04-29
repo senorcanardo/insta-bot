@@ -59,9 +59,8 @@ def download_with_gallerydl(url: str, output_dir: str) -> list[Path]:
 def collect_files(output_dir: str) -> list[Path]:
     media_extensions = {".mp4", ".mov", ".webm", ".jpg", ".jpeg", ".png", ".webp"}
     files = sorted([
-        Path(output_dir) / f
-        for f in os.listdir(output_dir)
-        if Path(f).suffix.lower() in media_extensions
+        f for f in Path(output_dir).rglob("*")
+        if f.is_file() and f.suffix.lower() in media_extensions
     ])
 
     oversized = [f for f in files if f.stat().st_size > MAX_FILE_SIZE]
