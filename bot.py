@@ -7,6 +7,7 @@ from pathlib import Path
 from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 from telegram.constants import ParseMode
+from telegram.request import HTTPXRequest
 from downloader import download_instagram_media, cleanup
 
 logging.basicConfig(
@@ -31,6 +32,7 @@ INSTAGRAM_PATTERN = re.compile(
     r"https?://(www\.)?instagram\.com/(p|reel|tv|stories)/[\w-]+/?(\?.*)?",
     re.IGNORECASE
 )
+
 
 def is_authorized(update: Update) -> bool:
     if ALLOWED_USER_ID == 0:
@@ -78,12 +80,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if len(chunk) == 1:
                 path = chunk[0]
                 if path.suffix.lower() in (".mp4", ".mov", ".webm"):
-                    await update.message.reply_video(video=open(path, "rb"))
-	                video=open(path, "rb"),
-			read_timeout=120,
-			write_timeout=120
-		    )
-
+                    await update.message.reply_video(
+                        video=open(path, "rb"),
+                        read_timeout=120,
+                        write_timeout=120
+                    )
                 else:
                     await update.message.reply_photo(photo=open(path, "rb"))
             else:
@@ -105,8 +106,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
-    from telegram.request import HTTPXRequest
-    request = HTTPXRequest(read_timeout=60, write_timeout=60, connect_timeout=30, media_write_timeout=120)
+    request = HTTPXRequest(
+        read_timeout=60,
+        write_timeout=60,
+        connect_timeout=30,
+        media_write_timeout=120
+    )
     app = Application.builder().token(BOT_TOKEN).request(request).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
