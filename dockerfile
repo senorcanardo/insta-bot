@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# Install ffmpeg and yt-dlp system dependency
+# bust cache 2
 RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -8,8 +8,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 
-# Install latest yt-dlp directly
-RUN pip3 install yt-dlp
+RUN pip3 install --upgrade yt-dlp gallery-dl
 
 COPY . .
 
