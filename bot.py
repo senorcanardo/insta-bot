@@ -3,10 +3,19 @@ import os
 import re
 import asyncio
 from pathlib import Path
+import base64, urllib.request
 from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 from telegram.constants import ParseMode
 from downloader import download_instagram_media, cleanup
+
+cookies_url = os.environ.get("COOKIES_URL")
+if cookies_url:
+    try:
+        urllib.request.urlretrieve(cookies_url, "cookies.txt")
+        logger.info("Cookies downloaded from COOKIES_URL.")
+    except Exception as e:
+        logger.warning(f"Failed to download cookies: {e}")
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",

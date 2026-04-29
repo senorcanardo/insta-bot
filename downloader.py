@@ -16,18 +16,22 @@ MAX_FILE_SIZE = 50 * 1024 * 1024
 
 
 def get_yt_dlp_cmd(url: str, output_dir: str) -> list[str]:
-    """Build the yt-dlp command."""
     cmd = [
         "yt-dlp",
         "--no-playlist",
-        "--write-info-json",
         "-o", f"{output_dir}/%(title)s_%(id)s.%(ext)s",
         "--merge-output-format", "mp4",
-        # For photo carousels, download all items
-        "--compat-options", "no-live-chat",
-        "--extractor-args", "instagram:api_path=v1",
+        "--write-info-json",
+        # Tell yt-dlp to also grab images, not just video
+        "--extractor-args", "instagram:include_feed_data=1",
         url
     ]
+    if os.path.exists(COOKIES_FILE):
+        cmd.extend(["--cookies", COOKIES_FILE])
+        logger.info("Using cookies file for authentication.")
+    else:
+        logger.warning("No cookies file found. Public content only.")
+    return cmd
 
     if os.path.exists(COOKIES_FILE):
         cmd.extend(["--cookies", COOKIES_FILE])
