@@ -2,20 +2,12 @@ import logging
 import os
 import re
 import asyncio
+import urllib.request
 from pathlib import Path
-import base64, urllib.request
 from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 from telegram.constants import ParseMode
 from downloader import download_instagram_media, cleanup
-
-cookies_url = os.environ.get("COOKIES_URL")
-if cookies_url:
-    try:
-        urllib.request.urlretrieve(cookies_url, "cookies.txt")
-        logger.info("Cookies downloaded from COOKIES_URL.")
-    except Exception as e:
-        logger.warning(f"Failed to download cookies: {e}")
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -26,6 +18,14 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 ALLOWED_USER_ID = int(os.environ.get("ALLOWED_USER_ID", "0"))
 
+# Cookies setup
+cookies_url = os.environ.get("COOKIES_URL")
+if cookies_url:
+    try:
+        urllib.request.urlretrieve(cookies_url, "cookies.txt")
+        logger.info("Cookies downloaded from COOKIES_URL.")
+    except Exception as e:
+        logger.warning(f"Failed to download cookies: {e}")
 INSTAGRAM_PATTERN = re.compile(
     r"https?://(www\.)?instagram\.com/(p|reel|tv|stories)/[\w-]+/?(\?.*)?",
     re.IGNORECASE
