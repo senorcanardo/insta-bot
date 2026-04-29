@@ -26,11 +26,6 @@ if cookies_url:
         logger.info("Cookies downloaded from COOKIES_URL.")
     except Exception as e:
         logger.warning(f"Failed to download cookies: {e}")
-INSTAGRAM_PATTERN = re.compile(
-    r"https?://(www\.)?instagram\.com/(p|reel|tv|stories)/[\w-]+/?(\?.*)?",
-    re.IGNORECASE
-)
-
 
 def is_authorized(update: Update) -> bool:
     if ALLOWED_USER_ID == 0:
