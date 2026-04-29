@@ -79,6 +79,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 path = chunk[0]
                 if path.suffix.lower() in (".mp4", ".mov", ".webm"):
                     await update.message.reply_video(video=open(path, "rb"))
+	                video=open(path, "rb"),
+			read_timeout=120,
+			write_timeout=120
+		    )
+
                 else:
                     await update.message.reply_photo(photo=open(path, "rb"))
             else:
@@ -100,7 +105,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
-    app = Application.builder().token(BOT_TOKEN).build()
+    from telegram.request import HTTPXRequest
+    request = HTTPXRequest(read_timeout=60, write_timeout=60, connect_timeout=30, media_write_timeout=120)
+    app = Application.builder().token(BOT_TOKEN).request(request).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     logger.info("Bot started.")
