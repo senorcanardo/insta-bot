@@ -1,104 +1,110 @@
 import os
-import json
 import logging
 import tempfile
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Path to Instagram cookies file (optional but recommended)
 COOKIES_FILE = os.environ.get("COOKIES_FILE", "cookies.txt")
-
-# Telegram max file size (50MB in bytes)
-MAX_FILE_SIZE = 50 * 1024 * 1024
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB Telegram limit
 
 
-def get_yt_dlp_cmd(url: str, output_dir: str) -> list[str]:
+def is_video_url(url: str) -> bool:
+    return "/reel/" in url or "/tv/" in url
+
+
+def download_with_ytdlp(url: str, output_dir: str) -> list[Path]:
     cmd = [
         "yt-dlp",
         "--no-playlist",
         "-o", f"{output_dir}/%(title)s_%(id)s.%(ext)s",
         "--merge-output-format", "mp4",
-        "--images",          # include image-only posts
-        "--no-warnings",
+        "--no-check-formats",
         url
     ]
-
     if os.path.exists(COOKIES_FILE):
         cmd.extend(["--cookies", COOKIES_FILE])
-        logger.info("Using cookies file for authentication.")
-    else:
-        logger.warning("No cookies file found. Public content only.")
+        logger.info("yt-dlp: using cookies.")
 
-    return cmd
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    logger.info(f"yt-dlp stdout: {result.stdout[-300:]}")
+
+    if result.returncode != 0:
+        raise RuntimeError(f"yt-dlp failed: {result.stderr[-300:]}")
+
+    return collect_files(output_dir)
 
 
-def download_instagram_media(url: str) -> list[Path]:
-    """
-    Download media from an Instagram URL.
-    Returns a list of downloaded file paths.
-    """
-    tmp_dir = tempfile.mkdtemp(prefix="instabot_")
-    logger.info(f"Downloading {url} to {tmp_dir}")
+def download_with_gallerydl(url: str, output_dir: str) -> list[Path]:
+    cmd = [
+        "gallery-dl",
+        "--dest", output_dir,
+        "--filename", "{filename}.{extension}",
+        url
+    ]
+    if os.path.exists(COOKIES_FILE):
+        cmd.extend(["--cookies", COOKIES_FILE])
+        logger.info("gallery-dl: using cookies.")
 
-    cmd = get_yt_dlp_cmd(url, tmp_dir)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    logger.info(f"gallery-dl stdout: {result.stdout[-300:]}")
 
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=120  # 2 minute timeout
-        )
+    if result.returncode != 0:
+        raise RuntimeError(f"gallery-dl failed: {result.stderr[-300:]}")
 
-        if result.returncode != 0:
-            logger.error(f"yt-dlp stderr: {result.stderr}")
-            raise RuntimeError(f"yt-dlp failed: {result.stderr[-300:]}")
+    return collect_files(output_dir)
 
-        logger.info(f"yt-dlp stdout: {result.stdout[-300:]}")
 
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("Download timed out after 2 minutes.")
-
-    # Collect downloaded media files (exclude .json info files)
+def collect_files(output_dir: str) -> list[Path]:
     media_extensions = {".mp4", ".mov", ".webm", ".jpg", ".jpeg", ".png", ".webp"}
     files = sorted([
-        Path(tmp_dir) / f
-        for f in os.listdir(tmp_dir)
+        Path(output_dir) / f
+        for f in os.listdir(output_dir)
         if Path(f).suffix.lower() in media_extensions
     ])
 
-    if not files:
-        raise RuntimeError("No media files were downloaded.")
-
-    # Check file sizes
     oversized = [f for f in files if f.stat().st_size > MAX_FILE_SIZE]
     if oversized:
-        logger.warning(f"{len(oversized)} file(s) exceed Telegram's 50MB limit and will be skipped.")
-        files = [f for f in files if f.stat().st_size <= MAX_FILE_SIZE]
+        logger.warning(f"{len(oversized)} file(s) exceed 50MB and will be skipped.")
+    files = [f for f in files if f.stat().st_size <= MAX_FILE_SIZE]
 
-    if not files:
-        raise RuntimeError("All downloaded files exceed Telegram's 50MB limit.")
-
-    logger.info(f"Successfully downloaded {len(files)} file(s).")
     return files
 
 
+def download_instagram_media(url: str) -> list[Path]:
+    tmp_dir = tempfile.mkdtemp(prefix="instabot_")
+    logger.info(f"Downloading {url} to {tmp_dir}")
+
+    try:
+        if is_video_url(url):
+            logger.info("Detected video/reel — using yt-dlp")
+            files = download_with_ytdlp(url, tmp_dir)
+        else:
+            logger.info("Detected photo post — using gallery-dl")
+            files = download_with_gallerydl(url, tmp_dir)
+
+        if not files:
+            raise RuntimeError("No media files were downloaded.")
+
+        logger.info(f"Successfully downloaded {len(files)} file(s).")
+        return files
+
+    except Exception:
+        cleanup(collect_files(tmp_dir))
+        raise
+
+
 def cleanup(files: list[Path]):
-    """Remove downloaded files and their temp directory."""
-    dirs_to_remove = set()
+    dirs = set()
     for f in files:
-        dirs_to_remove.add(f.parent)
+        dirs.add(f.parent)
         try:
             f.unlink(missing_ok=True)
         except Exception as e:
             logger.warning(f"Could not delete {f}: {e}")
-
-    for d in dirs_to_remove:
+    for d in dirs:
         try:
-            # Only remove if empty
             if d.exists() and not any(d.iterdir()):
                 d.rmdir()
         except Exception as e:
