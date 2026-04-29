@@ -1,6 +1,7 @@
 [build]
 builder = "nixpacks"
+buildCommand = "pip3 install -r requirements.txt && pip3 install yt-dlp"
 
 [deploy]
-startCommand = "python bot.py"
+startCommand = "python3 bot.py"
 restartPolicyType = "always"

@@ -1,8 +1,0 @@
-[phases.setup]
-nixPkgs = ["python311", "ffmpeg"]
-
-[phases.install]
-cmds = ["pip3 install -r requirements.txt && pip3 install yt-dlp"]
-
-[start]
-cmd = "python3 bot.py"
